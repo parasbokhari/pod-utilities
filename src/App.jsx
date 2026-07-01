@@ -211,7 +211,7 @@ function DraftManager({ storageKey, currentValue, onLoad, setToast }) {
 }
 
 
-function ConfirmDialog({ open, title, description, confirmLabel = "Confirm", onConfirm, onCancel }) {
+function ConfirmDialog({ open, title, description, confirmLabel = "Confirm", loading = false, onConfirm, onCancel }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 px-4">
@@ -219,8 +219,8 @@ function ConfirmDialog({ open, title, description, confirmLabel = "Confirm", onC
         <div className="text-lg font-semibold">{title}</div>
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button type="button" onClick={onConfirm}>{confirmLabel}</Button>
+          <Button type="button" variant="outline" disabled={loading} onClick={onCancel}>Cancel</Button>
+          <Button type="button" disabled={loading} onClick={onConfirm}>{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Deleting" : confirmLabel}</Button>
         </div>
       </div>
     </div>
@@ -700,6 +700,7 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteKey, setDeleteKey] = useState("");
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const [pendingSyncColors, setPendingSyncColors] = useState(null);
   const [valStatus, setValStatus] = useState(initialLoadStatus || "idle");
   const [valError, setValError] = useState("");
@@ -773,12 +774,16 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
     setDeleteDialogOpen(true);
   }
 
-  function confirmDeleteColor() {
+  async function confirmDeleteColor() {
+    if (!deleteKey || deleteSaving) return;
     const next = { ...colorMap };
     delete next[deleteKey];
-    setColorMap(next);
+    setDeleteSaving(true);
+    const saved = await saveColorsToVal(next, "Deleted color");
+    setDeleteSaving(false);
+    if (!saved) return;
     setDeleteDialogOpen(false);
-    saveColorsToVal(next, "Deleted color");
+    setDeleteKey("");
   }
 
   function addColor() {
@@ -826,7 +831,7 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
             <CardContent className="grid gap-3 md:grid-cols-[1fr_180px_auto] md:items-end">
               <div><label className="mb-2 block text-sm font-medium" htmlFor="new-color-name">Color name</label><Input id="new-color-name" value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Deep Purple" /></div>
               <div><label className="mb-2 block text-sm font-medium" htmlFor="new-color-value">CSS value</label><Input id="new-color-value" value={newValue} onChange={(event) => setNewValue(event.target.value)} placeholder="#484848" /></div>
-              <Button type="button" onClick={addColor} disabled={valStatus === "saving"}>{valStatus === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Add color</Button>
+              <Button type="button" onClick={addColor} disabled={valStatus === "saving"}>{valStatus === "saving" && !deleteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Add color</Button>
             </CardContent>
           </Card>
 
@@ -835,10 +840,10 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
               <div><CardTitle>Colors</CardTitle><CardDescription className="mt-2">{colorRows.length} colors in the current map.</CardDescription></div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" disabled={valStatus === "loading"} onClick={loadColorsFromVal}>Refresh</Button>
-                <Button type="button" variant="outline" disabled={valStatus === "saving"} onClick={() => saveColorsToVal(colorMap)}>Save edits</Button>
+                <Button type="button" variant="outline" disabled={valStatus === "saving"} onClick={() => saveColorsToVal(colorMap)}>{valStatus === "saving" && !deleteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save edits</Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-3">
               {colorRows.map(([key, value]) => (
                 <div key={key} className="grid gap-3 rounded-md border bg-background p-3 md:grid-cols-[44px_1fr_180px_auto] md:items-center">
                   <div className="h-9 rounded-md border" style={{ background: value === "transparent" ? "linear-gradient(135deg, transparent 0 46%, #d4d4d8 46% 54%, transparent 54% 100%)" : value }} />
@@ -847,6 +852,9 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
                   <Button type="button" variant="ghost" size="icon" aria-label={`Delete ${key}`} onClick={() => requestDeleteColor(key)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               ))}
+              <div className="flex justify-end border-t pt-3">
+                <Button type="button" disabled={valStatus === "saving"} onClick={() => saveColorsToVal(colorMap)}>{valStatus === "saving" && !deleteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save edits</Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -872,7 +880,11 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
         title="Delete color?"
         description={`This removes ${deleteKey} from the shared color map.`}
         confirmLabel="Delete color"
-        onCancel={() => setDeleteDialogOpen(false)}
+        loading={deleteSaving}
+        onCancel={() => {
+          if (deleteSaving) return;
+          setDeleteDialogOpen(false);
+        }}
         onConfirm={confirmDeleteColor}
       />
 
