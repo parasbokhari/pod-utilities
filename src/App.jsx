@@ -24,7 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
-import { APPROVED_COLORS, POD_COLOR_MAP, colorKey, colorSwatches, formatHublColorMap, parseHublColorMap } from "./config/colors";
+import { APPROVED_COLORS, colorKey, colorSwatches, formatHublColorMap, parseHublColorMap } from "./config/colors";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
@@ -100,7 +100,7 @@ function AppHeader({ route, onNavigate }) {
     <header className="border-b bg-background">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="text-lg font-semibold">POD Utilities</div>
+          <button type="button" className="text-left text-lg font-semibold transition-colors hover:text-primary" onClick={() => onNavigate("/")}>POD Utilities</button>
           <div className="text-sm text-muted-foreground">Formatting helpers for the Taylor Print on Demand catalog.</div>
         </div>
         <nav className="flex flex-wrap gap-2">
@@ -548,7 +548,8 @@ function VariantCompiler({ colorMap, colorOptions, colorLoadStatus }) {
   const [attributeLabelOptions, setAttributeLabelOptions] = useState(ATTRIBUTE_LABELS);
   const [attributeLabelStatus, setAttributeLabelStatus] = useState("idle");
   const output = generateAttributeString(attributes);
-  const errors = validateVariantAttributes(attributes);
+  const errors = attributes.length ? validateVariantAttributes(attributes) : [];
+  const hasAttributes = attributes.length > 0;
 
   function importAttributes() {
     const parsed = parseAttributeString(pasteValue);
@@ -671,9 +672,9 @@ function VariantCompiler({ colorMap, colorOptions, colorLoadStatus }) {
           </Card>
         </div>
         <Card className="h-fit">
-          <CardHeader><CardTitle>Output</CardTitle><CardDescription>{errors.length ? errors[0] : "Ready to copy"}</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Output</CardTitle><CardDescription>{hasAttributes ? (errors.length ? errors[0] : "Ready to copy") : "Add attributes or paste a variant field."}</CardDescription></CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">{errors.length ? <Badge variant="destructive">Needs fixes</Badge> : <Badge variant="success">Valid</Badge>}{attributes.some((attribute) => attribute.label === "Color" && attribute.value) && <Badge variant="outline" className="gap-2"><ColorSwatches value={attributes.find((attribute) => attribute.label === "Color")?.value} colorMap={colorMap} />Color mapped</Badge>}</div>
+            <div className="flex flex-wrap items-center gap-3">{hasAttributes && (errors.length ? <Badge variant="destructive">Needs fixes</Badge> : <Badge variant="success">Valid</Badge>)}{attributes.some((attribute) => attribute.label === "Color" && attribute.value) && <Badge variant="outline" className="gap-2"><ColorSwatches value={attributes.find((attribute) => attribute.label === "Color")?.value} colorMap={colorMap} />Color mapped</Badge>}</div>
             <textarea className="min-h-40 w-full rounded-md border bg-muted/40 p-3 text-sm" readOnly value={output} />
             <Button type="button" className="w-full" disabled={!output || errors.length > 0} onClick={() => copyText(output)}><Copy className="h-4 w-4" />Copy variant field</Button>
           </CardContent>
@@ -734,6 +735,7 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
       const message = error.message || "Could not load shared colors.";
       setValError(message);
       toast.error(message);
+      return false;
     }
   }
 
@@ -752,11 +754,13 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
       setColorMap(savedColors);
       setValStatus("done");
       toast.success(successMessage);
+      return true;
     } catch (error) {
       setValStatus("error");
       const message = error.message || "Could not save shared colors.";
       setValError(message);
       toast.error(message);
+      return false;
     }
   }
 
@@ -787,12 +791,6 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
     saveColorsToVal(next, "Added color");
   }
 
-  function resetColors() {
-    if (!window.confirm("Reset colors to the default POD color map? Custom colors will be removed.")) return;
-    setColorMap(POD_COLOR_MAP);
-    saveColorsToVal(POD_COLOR_MAP, "Reset shared colors");
-  }
-
   function prepareHublSync() {
     const next = parseHublColorMap(bulkHublValue);
     if (!Object.keys(next).length) {
@@ -804,10 +802,10 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
     setPendingSyncColors(next);
   }
 
-  function confirmHublSync() {
-    if (!pendingSyncColors) return;
-    setColorMap(pendingSyncColors);
-    saveColorsToVal(pendingSyncColors, "Synced HubL color map");
+  async function confirmHublSync() {
+    if (!pendingSyncColors || valStatus === "saving") return;
+    const saved = await saveColorsToVal(pendingSyncColors, "Synced HubL color map");
+    if (!saved) return;
     setBulkHublValue("");
     setPendingSyncColors(null);
     setSyncDialogOpen(false);
@@ -838,7 +836,6 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" disabled={valStatus === "loading"} onClick={loadColorsFromVal}>Refresh</Button>
                 <Button type="button" variant="outline" disabled={valStatus === "saving"} onClick={() => saveColorsToVal(colorMap)}>Save edits</Button>
-                <Button type="button" variant="outline" onClick={resetColors}>Reset defaults</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -854,19 +851,19 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
           </Card>
         </div>
 
-        <Card className="h-fit">
-          <CardHeader><CardTitle>HubL color map</CardTitle><CardDescription>Copy this into your HubL theme.</CardDescription></CardHeader>
-          <CardContent className="space-y-4">
-            <textarea className="min-h-[520px] w-full rounded-md border bg-muted/40 p-3 font-mono text-xs" readOnly value={hublColorMap} />
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => {
-                setSyncDialogOpen(true);
-                setPendingSyncColors(null);
-              }}><Upload className="h-4 w-4" />Sync from HubL</Button>
-              <Button type="button" onClick={() => copyText(hublColorMap)}><Copy className="h-4 w-4" />Copy HubL color map</Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <Card className="h-fit">
+            <CardHeader><CardTitle>HubL color map</CardTitle><CardDescription>Copy this into your HubL theme.</CardDescription></CardHeader>
+            <CardContent className="space-y-4">
+              <textarea className="min-h-[520px] w-full rounded-md border bg-muted/40 p-3 font-mono text-xs" readOnly value={hublColorMap} />
+              <Button type="button" className="w-full" onClick={() => copyText(hublColorMap)}><Copy className="h-4 w-4" />Copy HubL color map</Button>
+            </CardContent>
+          </Card>
+          <Button type="button" variant="outline" className="w-full" onClick={() => {
+            setSyncDialogOpen(true);
+            setPendingSyncColors(null);
+          }}><Upload className="h-4 w-4" />Sync from HubL</Button>
+        </div>
       </section>
       )}
 
@@ -884,7 +881,7 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg border bg-background p-5 shadow-xl">
             <div className="text-lg font-semibold">Sync from HubL variable</div>
             <p className="mt-2 text-sm text-muted-foreground">Paste a full POD_COLOR_MAP block, then review what will be added, changed, or removed before saving.</p>
-            <textarea className="mt-4 min-h-48 w-full rounded-md border bg-background p-3 font-mono text-xs" value={bulkHublValue} onChange={(event) => {
+            <textarea className="mt-4 min-h-48 w-full rounded-md border bg-background p-3 font-mono text-xs" value={bulkHublValue} disabled={valStatus === "saving"} onChange={(event) => {
               setBulkHublValue(event.target.value);
               setPendingSyncColors(null);
             }} placeholder="{% set POD_COLOR_MAP = { ... } %}" />
@@ -896,14 +893,14 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
               </div>
             )}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => {
+              <Button type="button" variant="outline" disabled={valStatus === "saving"} onClick={() => {
                 setSyncDialogOpen(false);
                 setPendingSyncColors(null);
               }}>Cancel</Button>
               {!pendingSyncColors ? (
-                <Button type="button" onClick={prepareHublSync}>Compare changes</Button>
+                <Button type="button" onClick={prepareHublSync} disabled={valStatus === "saving"}>Compare changes</Button>
               ) : (
-                <Button type="button" onClick={confirmHublSync} disabled={valStatus === "saving"}>{valStatus === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}Confirm sync</Button>
+                <Button type="button" onClick={confirmHublSync} disabled={valStatus === "saving"}>{valStatus === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{valStatus === "saving" ? "Syncing" : "Confirm sync"}</Button>
               )}
             </div>
           </div>
