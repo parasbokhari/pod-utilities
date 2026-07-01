@@ -395,9 +395,6 @@ function ImageCompiler() {
       title="Image Compiler"
       description="Paste image URLs, preview them, reorder the set, and copy one clean pipe-separated spreadsheet value."
     >
-      {(colorLoadStatus === "loading" || attributeLabelStatus === "loading") ? (
-        <LoadingPanel />
-      ) : (
       <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <Card>
@@ -818,14 +815,14 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
 
   return (
     <PageShell eyebrow={<><Palette className="h-4 w-4" /> Color manager</>} title="Manage POD colors" description="Add, delete, bulk-sync from HubL, and copy the POD_COLOR_MAP variable used by variant color swatches.">
+      {valStatus === "loading" ? (
+        <LoadingPanel />
+      ) : (
       <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
         <div className="space-y-6">
           {valError && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{valError}</div>}
 
-          {valStatus === "loading" ? (
-            <LoadingPanel />
-          ) : (
-          <>
+
           <Card>
             <CardHeader><CardTitle>Add color</CardTitle><CardDescription>Names are converted to lowercase underscore keys for HubL and saved to the shared color map.</CardDescription></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-[1fr_180px_auto] md:items-end">
@@ -855,11 +852,8 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
               ))}
             </CardContent>
           </Card>
-          </>
-          )}
         </div>
 
-        {valStatus === "loading" ? null : (
         <Card className="h-fit">
           <CardHeader><CardTitle>HubL color map</CardTitle><CardDescription>Copy this into your HubL theme.</CardDescription></CardHeader>
           <CardContent className="space-y-4">
@@ -873,8 +867,8 @@ function ColorManager({ colorMap, setColorMap, initialLoadStatus }) {
             </div>
           </CardContent>
         </Card>
-        )}
       </section>
+      )}
 
       <ConfirmDialog
         open={deleteDialogOpen}
