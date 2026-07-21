@@ -41,7 +41,6 @@ import {
   moveItem,
   parseImageInput,
   removeDuplicateUrls,
-  sortImageUrls,
   validateHttpsUrl,
   parseAttributeString,
   validateVariantAttributes,
@@ -406,7 +405,7 @@ function ImageCompiler() {
         throw new Error(data.error || "Could not fetch images from HubSpot.");
       }
 
-      const urls = sortImageUrls([...new Set((Array.isArray(data.urls) ? data.urls : []).filter((value) => {
+      const urls = [...new Set((Array.isArray(data.urls) ? data.urls : []).filter((value) => {
         if (typeof value !== "string") return false;
         try {
           const url = new URL(value);
@@ -414,7 +413,7 @@ function ImageCompiler() {
         } catch {
           return false;
         }
-      }))]);
+      }))];
 
       setItems(urls.map((url) => ({ id: createId("image"), url })));
 

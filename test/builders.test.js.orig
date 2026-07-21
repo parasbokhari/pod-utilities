@@ -7,12 +7,10 @@ import {
   generateAllExcelRows,
   generateAttributeString,
   generateImageOutput,
-  imageFileName,
   generateVariantsCsv,
   moveItem,
   parseAttributeString,
   parseImageInput,
-  sortImageUrls,
   validateHttpsUrl,
   validateVariantAttributes,
 } from "../src/lib/builders.js";
@@ -29,29 +27,6 @@ test("generates image output without leading or trailing separators", () => {
   const output = generateImageOutput([{ url: "https://a.test/1.webp" }, { url: "https://a.test/2.webp" }], true);
   assert.equal(output, "https://a.test/1.webp|https://a.test/2.webp");
 });
-
-test("extracts and decodes an image filename from its URL", () => {
-  assert.equal(
-    imageFileName("https://www.taylor.com/hubfs/catalog/business-card-horizontal-lifestyle-01.webp"),
-    "business-card-horizontal-lifestyle-01.webp",
-  );
-  assert.equal(imageFileName("https://www.taylor.com/hubfs/catalog/My%20Image.webp?width=800"), "My Image.webp");
-  assert.equal(imageFileName("not-a-url"), "");
-});
-test("sorts image URLs naturally by decoded filename", () => {
-  const urls = [
-    "https://www.taylor.com/hubfs/product-10.webp",
-    "https://www.taylor.com/hubfs/product-02.webp",
-    "https://www.taylor.com/hubfs/product-01.webp",
-  ];
-  assert.deepEqual(sortImageUrls(urls), [urls[2], urls[1], urls[0]]);
-  assert.deepEqual(urls, [
-    "https://www.taylor.com/hubfs/product-10.webp",
-    "https://www.taylor.com/hubfs/product-02.webp",
-    "https://www.taylor.com/hubfs/product-01.webp",
-  ]);
-});
-
 
 test("detects duplicates, invalid URLs, and metadata appended after a comma", () => {
   assert.deepEqual([...duplicateUrlSet([{ url: "https://a.test/1.webp" }, { url: "https://a.test/1.webp" }])], ["https://a.test/1.webp"]);

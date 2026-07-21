@@ -1,0 +1,45 @@
+@@ -392,3 +392,44 @@
++  async function importHubSpotFolders() {
++    if (!folderValue.trim()) return;
++
++    setFolderLoading(true);
++    try {
++      const response = await fetch(HUBSPOT_FOLDER_IMAGES_ENDPOINT, {
++        method: "POST",
++        headers: { "content-type": "application/json" },
++        body: JSON.stringify({ folders: folderValue }),
++      });
++      const data = await response.json().catch(() => ({}));
++
++      if (!response.ok) {
++        throw new Error(data.error || "Could not fetch images from HubSpot.");
++      }
++
++      const urls = [...new Set((Array.isArray(data.urls) ? data.urls : []).filter((value) => {
++        if (typeof value !== "string") return false;
++        try {
++          const url = new URL(value);
++          return url.protocol === "https:" && url.hostname.toLowerCase() === "www.taylor.com";
++        } catch {
++          return false;
++        }
++      }))];
++
++      setItems(urls.map((url) => ({ id: createId("image"), url })));
++
++      const folderCount = Array.isArray(data.folderIds) ? data.folderIds.length : 0;
++      if (urls.length) {
++        toast.success(`Imported ${urls.length} image${urls.length === 1 ? "" : "s"}${folderCount ? ` from ${folderCount} folder${folderCount === 1 ? "" : "s"}` : ""}`);
++      } else {
++        toast.info("No www.taylor.com images were found in those folders.");
++      }
++    } catch (error) {
++      toast.error(error instanceof Error ? error.message : "Could not fetch images from HubSpot.");
++    } finally {
++      setFolderLoading(false);
++    }
++  }
++
+   function updateItem(id, url) {
+     setItems(items.map((item) => (item.id === id ? { ...item, url } : item)));
+   }

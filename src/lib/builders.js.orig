@@ -19,31 +19,6 @@ export function parseImageInput(input) {
     .filter(Boolean);
 }
 
-export function imageFileName(value) {
-  const text = String(value || "").trim();
-  if (!text) return "";
-
-  const metadata = detectImageMetadata(text);
-  const urlValue = metadata?.urlOnly || text;
-
-  try {
-    const pathname = new URL(urlValue).pathname;
-    const filename = pathname.split("/").filter(Boolean).at(-1) || "";
-    return decodeURIComponent(filename);
-  } catch {
-    return "";
-  }
-}
-
-export function sortImageUrls(urls) {
-  return [...urls].sort((left, right) => {
-    const leftName = imageFileName(left) || String(left);
-    const rightName = imageFileName(right) || String(right);
-    const byName = leftName.localeCompare(rightName, "en", { numeric: true, sensitivity: "base" });
-    return byName || String(left).localeCompare(String(right), "en", { numeric: true, sensitivity: "base" });
-  });
-}
-
 export function generateImageOutput(items, multiple = true) {
   const urls = items.map((item) => item.url.trim()).filter(Boolean);
   return multiple ? urls.join("|") : urls[0] || "";
